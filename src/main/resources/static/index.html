@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Suggester - Modern Phone Recommendations</title>
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+  </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Main App Component
+        const App = () => {
+            const [currentPage, setCurrentPage] = useState('login');
+            const [user, setUser] = useState(null);
+            const [categories, setCategories] = useState([]);
+            const [selectedCategory, setSelectedCategory] = useState(null);
+
+            useEffect(() => {
+                // Load categories on app start
+                loadCategories();
+            }, []);
+
+            const loadCategories = async () => {
+                try {
+                    const cats = await apiService.getCategories();
+                    setCategories(cats);
+                } catch (error) {
+                    console.error('Error loading categories:', error);
+                }
+            };
+
+            const handleLogin = async (userData) => {
+                try {
+                    const response = await apiService.login(userData);
+                    if (response.token) {
+                        setUser(response);
+                        setCurrentPage('categories');
+                    } else {
+                        alert(response.message || 'Login failed');
+                    }
+                } catch (error) {
+                    alert('Login failed: ' + error.message);
+                }
+            };
+
+            const handleRegister = async (userData) => {
+                try {
+                    const response = await apiService.register(userData);
+                    if (response.token) {
+                        setUser(response);
+                        setCurrentPage('categories');
+                    } else {
+                        alert(response.message || 'Registration failed');
+                    }
+                } catch (error) {
+                    alert('Registration failed: ' + error.message);
+                }
+            };
+
+            const handleCategorySelect = (category) => {
+                setSelectedCategory(category);
+                setCurrentPage('phones');
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                setSelectedCategory(null);
+                setCurrentPage('login');
+            };
+
+            // Render different pages based on current state
+            if (currentPage === 'login') {
+                return <LoginPage onLogin={handleLogin} onRegister={() => setCurrentPage('register')} />;
+            } else if (currentPage === 'register') {
+                return <RegisterPage onRegister={handleRegister} onLogin={() => setCurrentPage('login')} />;
+            } else if (currentPage === 'categories') {
+                return <CategoryPage categories={categories} onSelectCategory={handleCategorySelect} onLogout={handleLogout} user={user} />;
+            } else if (currentPage === 'phones') {
+                return <PhonePage selectedCategory={selectedCategory} onBack={() => setCurrentPage('categories')} onLogout={handleLogout} user={user} />;
+            }
+
+            return <div>Loading...</div>;
+        };
+
+        // Login Page Component
+        const LoginPage = ({ onLogin, onRegister }) => {
+            const [formData, setFormData] = useState({ username: '', password: '' });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onLogin(formData);
+            };
+
+            return (
+                <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+                        <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+                            <i className="fas fa-mobile-alt mr-3 text-blue-500"></i>
+                            Phone Suggester
+                        </h1>
+                        
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.username}
+                                    onChange={(e) => setFormData({...formData, username: e.target.value})}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                />
+                            </div>
+                            
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                Login
+                            </button>
+                        </form>
+                        
+                        <div className="mt-6 text-center">
+                            <p className="text-gray-600">
+                                Don't have an account?{' '}
+                                <button
+                                    onClick={onRegister}
+                                    className="text-blue-500 hover:text-blue-600 font-medium"
+                                >
+                                    Register here
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Register Page Component
+        const RegisterPage = ({ onRegister, onLogin }) => {
+            const [formData, setFormData] = useState({ username: '', email: '', password: '' });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onRegister(formData);
+            };
+
+            return (
+                <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+                        <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+                            <i className="fas fa-user-plus mr-3 text-blue-500"></i>
+                            Create Account
+                        </h1>
+                        
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.username}
+                                    onChange={(e) => setFormData({...formData, username: e.target.value})}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                />
+                            </div>
+                            
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                Register
+                            </button>
+        </form>
+                        
+                        <div className="mt-6 text-center">
+                            <p className="text-gray-600">
+                                Already have an account?{' '}
+                                <button
+                                    onClick={onLogin}
+                                    className="text-blue-500 hover:text-blue-600 font-medium"
+                                >
+                                    Login here
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Category Page Component
+        const CategoryPage = ({ categories, onSelectCategory, onLogout, user }) => {
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <nav className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <h1 className="text-xl font-semibold text-gray-800">
+                                    <i className="fas fa-mobile-alt mr-2 text-blue-500"></i>
+                                    Phone Suggester
+                                </h1>
+                                <div className="flex items-center space-x-4">
+                                    <span className="text-sm text-gray-600">Welcome, {user?.username}</span>
+                                    <button
+                                        onClick={onLogout}
+                                        className="text-sm text-red-500 hover:text-red-600"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+                    
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Select a Category</h2>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {categories.map((category) => (
+                                <div
+                                    key={category.id}
+                                    onClick={() => onSelectCategory(category)}
+                                    className="bg-white rounded-lg shadow-md p-6 cursor-pointer card-hover"
+                                >
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">{category.name}</h3>
+                                    <p className="text-gray-600">{category.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Phone Page Component
+        const PhonePage = ({ selectedCategory, onBack, onLogout, user }) => {
+            const [phones, setPhones] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [currentPage, setCurrentPage] = useState(0);
+            const [filters, setFilters] = useState({
+                query: '',
+                brand: '',
+                minPrice: '',
+                maxPrice: '',
+                usageType: ''
+            });
+
+            useEffect(() => {
+                loadPhones();
+            }, [currentPage]);
+
+            const loadPhones = async () => {
+                try {
+                    setLoading(true);
+                    const data = await apiService.getPhones(currentPage, 10);
+                    setPhones(data.content || data);
+                } catch (error) {
+                    console.error('Error loading phones:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleSearch = async () => {
+                try {
+                    setLoading(true);
+                    let data;
+                    if (filters.query) {
+                        data = await apiService.searchPhones(filters.query);
+                    } else if (filters.brand) {
+                        data = await apiService.getPhonesByBrand(filters.brand);
+                    } else if (filters.minPrice && filters.maxPrice) {
+                        data = await apiService.getPhonesByPriceRange(parseFloat(filters.minPrice), parseFloat(filters.maxPrice));
+                    } else {
+                        data = await apiService.getPhones(currentPage, 10);
+                    }
+                    setPhones(data.content || data);
+                } catch (error) {
+                    console.error('Error searching phones:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <nav className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <div className="flex items-center space-x-4">
+                                    <button
+                                        onClick={onBack}
+                                        className="text-blue-500 hover:text-blue-600"
+                                    >
+                                        <i className="fas fa-arrow-left mr-2"></i>
+                                        Back to Categories
+                                    </button>
+                                    <h1 className="text-xl font-semibold text-gray-800">
+                                        {selectedCategory?.name || 'All Phones'}
+                                    </h1>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <span className="text-sm text-gray-600">Welcome, {user?.username}</span>
+                                    <button
+                                        onClick={onLogout}
+                                        className="text-sm text-red-500 hover:text-red-600"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+                    
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <SearchFilters onSearch={handleSearch} onFilterChange={setFilters} />
+                        
+                        {loading ? (
+                            <div className="flex justify-center items-center h-64">
+                                <div className="loading-spinner"></div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {phones.map((phone) => (
+                                    <PhoneCard key={phone.id} phone={phone} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // API Service
+        const apiService = {
+            // Auth APIs
+            async register(userData) {
+                const response = await fetch('/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+                return await response.json();
+            },
+            
+            async login(userData) {
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+                return await response.json();
+            },
+            
+            // Category APIs
+            async getCategories() {
+                const response = await fetch('/api/v1/categories');
+                return await response.json();
+            },
+            
+            // Phone APIs
+            async getPhones(page = 0, size = 10) {
+                const response = await fetch(`/api/v1/phones?page=${page}&size=${size}`);
+                const data = await response.json();
+                return data.data;
+            },
+            
+            async searchPhones(query) {
+                const response = await fetch(`/api/v1/phones/search?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                return data.data;
+            },
+            
+            async getPhonesByBrand(brand) {
+                const response = await fetch(`/api/v1/phones/brand/${encodeURIComponent(brand)}`);
+                const data = await response.json();
+                return data.data;
+            },
+            
+            async getPhonesByPriceRange(minPrice, maxPrice) {
+                const response = await fetch(`/api/v1/phones/price-range?minPrice=${minPrice}&maxPrice=${maxPrice}`);
+                const data = await response.json();
+                return data.data;
+            }
+        };
+
+        // Phone Card Component
+        const PhoneCard = ({ phone }) => (
+            <div className="bg-white rounded-lg shadow-md card-hover overflow-hidden">
+                <div className="relative">
+                    <img 
+                        src={phone.imageUrl || 'https://via.placeholder.com/300x200?text=Phone+Image'} 
+                        alt={phone.name}
+                        className="w-full h-48 object-cover"
+                        onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/300x200?text=Phone+Image';
+                        }}
+                    />
+                    <div className="absolute top-2 right-2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                        {phone.currency} {phone.price?.toLocaleString()}
+                    </div>
+                </div>
+                <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">{phone.name}</h3>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{phone.description}</p>
+                    
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm text-gray-500">{phone.brand}</span>
+                        <div className="flex items-center">
+                            <i className="fas fa-star text-yellow-400 mr-1"></i>
+                            <span className="text-sm font-medium">{phone.rating}</span>
+      </div>
+    </div>
+                    
+                    <div className="flex flex-wrap gap-1 mb-3">
+                        {phone.usageTypes?.map((type, index) => (
+                            <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                                {type}
+                            </span>
+                        ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                        <div><i className="fas fa-mobile-alt mr-1"></i> {phone.screenSize}"</div>
+                        <div><i className="fas fa-memory mr-1"></i> {phone.storageGB}GB</div>
+                        <div><i className="fas fa-microchip mr-1"></i> {phone.ramGB}GB RAM</div>
+                        <div><i className="fas fa-battery-full mr-1"></i> {phone.batteryCapacity}mAh</div>
+                    </div>
+      </div>
+    </div>
+        );
+
+        // Search Filters Component
+        const SearchFilters = ({ onSearch, onFilterChange }) => {
+            const [filters, setFilters] = useState({
+                query: '',
+                brand: '',
+                minPrice: '',
+                maxPrice: '',
+                usageType: ''
+            });
+
+            const handleFilterChange = (key, value) => {
+                const newFilters = { ...filters, [key]: value };
+                setFilters(newFilters);
+                onFilterChange(newFilters);
+            };
+
+            const handleSearch = () => {
+                onSearch(filters);
+            };
+
+            return (
+                <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h2 className="text-xl font-semibold mb-4 text-gray-800">
+                        <i className="fas fa-search mr-2 text-blue-500"></i>
+                        Find Your Perfect Phone
+                    </h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <input
+                            type="text"
+                            placeholder="Search phones..."
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={filters.query}
+                            onChange={(e) => handleFilterChange('query', e.target.value)}
+                        />
+                        
+                        <select
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={filters.brand}
+                            onChange={(e) => handleFilterChange('brand', e.target.value)}
+                        >
+                            <option value="">All Brands</option>
+          <option value="Apple">Apple</option>
+          <option value="Samsung">Samsung</option>
+          <option value="Xiaomi">Xiaomi</option>
+          <option value="OnePlus">OnePlus</option>
+                            <option value="Google">Google</option>
+        </select>
+                        
+                        <select
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={filters.usageType}
+                            onChange={(e) => handleFilterChange('usageType', e.target.value)}
+                        >
+                            <option value="">All Types</option>
+                            <option value="Gaming">Gaming</option>
+                            <option value="Camera">Camera</option>
+                            <option value="Business">Business</option>
+                            <option value="Budget">Budget</option>
+                            <option value="Flagship">Flagship</option>
+        </select>
+                        
+                        <input
+                            type="number"
+                            placeholder="Min Price"
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={filters.minPrice}
+                            onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                        />
+                        
+                        <input
+                            type="number"
+                            placeholder="Max Price"
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={filters.maxPrice}
+                            onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                        />
+</div>
+
+                    <div className="mt-4 flex gap-2">
+                        <button
+                            onClick={handleSearch}
+                            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center"
+                        >
+                            <i className="fas fa-search mr-2"></i>
+                            Search
+                        </button>
+                        
+                        <button
+                            onClick={() => {
+                                setFilters({
+                                    query: '',
+                                    brand: '',
+                                    minPrice: '',
+                                    maxPrice: '',
+                                    usageType: ''
+                                });
+                                onSearch({});
+                            }}
+                            className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors flex items-center"
+                        >
+                            <i className="fas fa-times mr-2"></i>
+                            Clear
+                        </button>
+                    </div>
+      </div>
+            );
+        };
+
+
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
+</html>

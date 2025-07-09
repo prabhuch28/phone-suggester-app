@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "pom.xml",
+      "use": "@vercel/maven"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ],
+  "functions": {
+    "api/**/*.java": {
+      "runtime": "java21"
+    }
+  },
+  "env": {
+    "JAVA_VERSION": "21"
+  }
+} 
